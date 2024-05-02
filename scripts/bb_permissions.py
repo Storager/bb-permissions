@@ -5,21 +5,50 @@ import requests.auth
 import argparse
 from tabulate import tabulate
 
-server_url = "http://bitbucket.orb.local:7990/rest/api/1.0"
+# server_url = "http://bitbucket.orb.local:7990/rest/api/1.0"
 
-project_name = "FIR"
-repos = ["appengine","server"]
-target_repo = "monorepo"
+# project_name = "FIR"
+# repos = ["appengine","server"]
+# target_repo = "monorepo"
+
+server_url = ""
+
+project_name = ""
+repos = []
+target_repo = ""
+
+
 
 parser = argparse.ArgumentParser(description='Get bitbucket permissions')
 parser.add_argument('-u', '--username', help='bitbucket username',
                     required=True)
 parser.add_argument('-p', '--password', help='bitbucket password',
                     required=True)
+parser.add_argument('-f', '--firstrepo', help='first repo', required=True)
+parser.add_argument('-s', '--secondrepo', help='second repo', required=True)
+parser.add_argument('-t', '--targetrepo', help='target repo', required=True)
+parser.add_argument('-o', '--project', help='BitBucket project', required=True)
+parser.add_argument('-i', '--url', help='BitBucket base url', required=True)
+parser.add_argument('-v', '--verbose', help='Verbose output', action="store_true")
+
 args = parser.parse_args()
 
 username = args.username
 password = args.password
+repos.append(args.firstrepo)
+repos.append(args.secondrepo)
+target_repo = args.targetrepo
+project_name = args.project
+server_url = args.url + "/rest/api/1.0"
+if args.verbose:
+    debug = True
+else:
+    debug = False
+
+
+def printv(msg):
+    if debug:
+        print(msg)
 
 
 def print_privileges_matrix():
@@ -29,7 +58,6 @@ def print_privileges_matrix():
             request_url = f"{server_url}/projects/{project_name}/repos/{repository}/permissions/users"
             response = requests.get(request_url, auth=auth)
             response_json = response.json()
-
             users_info = [(user['user']['slug'], repository, user['permission'])
                           for user in response_json['values']]
             headers = ["User", "Repository", "Permissions"]
@@ -70,20 +98,21 @@ def get_maximal_permissions():
         exit(1)
 
 def set_uset_permissions():
-    print("====================================\n")
-    print("Выставляем привилегии в новом репозитории\n")
+    printv("====================================\n")
+    printv("Выставляем привилегии в новом репозитории\n")
     for user, permission in get_maximal_permissions().items():
         url = f"{server_url}/projects/{project_name}/repos/{target_repo}/permissions/users?name={user}&permission={permission}"
         response = requests.put(url, auth=requests.auth.HTTPBasicAuth(username, password))
         if response.status_code != 204:
             print(f"Невозможно выставить привилегии для {user}. {response.text}")
         else:
-            print(f"Выставляем привилегию {permission} для {user}")
+            printv(f"Выставляем привилегию {permission} для {user}")
 
-print("\nИсходное состояние на сервере\n+++++++++++++++++++++++++++++++++++")
-print_privileges_matrix()
-print("\nМаксимальные привилегии в разрезе пользователей\n++++++++++++++++++++++++++++++++++++")
-print(get_maximal_permissions())
-print()
+if debug:        
+    print("\nИсходное состояние на сервере\n+++++++++++++++++++++++++++++++++++")
+    print_privileges_matrix()
+    print("\nМаксимальные привилегии в разрезе пользователей\n++++++++++++++++++++++++++++++++++++")
+    print(get_maximal_permissions())
+    # print()
 
 set_uset_permissions()
